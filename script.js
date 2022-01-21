@@ -19,6 +19,10 @@ const currParcels = {
         type: 'Polygon',
         coordinates: [
           [
+            // [1, 0],
+            // [1, 1],
+            // [0, 1],
+            // [1, 0],
             [-13.196747818462239, 8.470800653649318],
             [-13.196747470924267, 8.470804906599355],
             [-13.196747623083455, 8.470806694047887],
@@ -78,6 +82,10 @@ const currParcels = {
         type: 'Polygon',
         coordinates: [
           [
+            // [0, 0],
+            // [0, 1],
+            // [1, 0],
+            // [0, 0],
             [-13.19683555556789, 8.470809539400962],
             [-13.196841009035245, 8.470811284377934],
             [-13.196844410206205, 8.470811559194427],
@@ -175,11 +183,13 @@ const map = new mapboxgl.Map({
   container: 'map', // container ID
   style: 'mapbox://styles/mapbox/satellite-v9', // style URL
   center: [-13.196747818462239, 8.470800653649318], // starting position [lng, lat]
+  // center: [0, 0],
   zoom: 20, // starting zoom
 })
 
 /* -------------------------- Create a draw object -------------------------- */
 const draw = new MapboxDraw({
+  userProperties: true,
   displayControlsDefault: false,
   // Select which mapbox-gl-draw control buttons to add to the map.
   controls: {
@@ -194,89 +204,148 @@ const draw = new MapboxDraw({
 map.addControl(draw)
 
 /* ---------------------------- Draw the testData --------------------------- */
-let id_arr = []
+
+// Line
+const point_lines_map = new Map() // Map < pointId : Set <lineId> >
+const coord_point_map = new Map() // Map < Coords : pointId >
+const line_points_map = new Map() // Map <lineId : [point1Id, point2Id]>
+
 currParcels.features.forEach((feature) => {
   const coordArr = feature.geometry.coordinates[0]
-  console.log(coordArr)
+
+  // Points:
+  // Set up coords - pointId map
+  for (let i = 0; i < coordArr.length; i++) {
+    const p = coordArr[i]
+
+    const pKey = p.join('_')
+
+    if (!coord_point_map.has(pKey)) {
+      const feature = {
+        type: 'Point',
+        coordinates: p,
+      }
+      const [pointId] = draw.add(feature)
+      coord_point_map.set(pKey, pointId)
+      draw.delete(pointId)
+    }
+  }
+
+  // Lines:
+  // Draw the lines
+  // Set up pointId - lineIds Map
+  // Set up lineId - [pId, pId] Map
 
   for (let i = 0; i < coordArr.length - 1; i++) {
-    let p1 = coordArr[i]
-    let p2 = coordArr[i + 1]
-    let feature = {
+    const p1 = coordArr[i]
+    const p2 = coordArr[i + 1]
+
+    const feature = {
       type: 'LineString',
       coordinates: [p1, p2],
     }
-    const lineId = draw.add(feature)
+
+    // draw lines
+    const [lineId] = draw.add(feature)
+
+    // update point_lines_map
+    const p1Key = p1.join('_')
+    const p2Key = p2.join('_')
+    const pArr = [coord_point_map.get(p1Key), coord_point_map.get(p2Key)]
+
+    for (let key of pArr) {
+      if (!point_lines_map.has(key)) {
+        point_lines_map.set(key, new Set())
+      }
+      point_lines_map.get(key).add(lineId)
+    }
+    line_points_map.set(lineId, [
+      coord_point_map.get(p1Key),
+      coord_point_map.get(p2Key),
+    ])
   }
-
-  //   const [parcelId] = draw.add(feature.geometry)
-  //   //   draw
-  //   //     .setFeatureProperty(parcelId, 'type', 'polygon')
-  //   //     .setFeatureProperty(parcelId, 'line-color', '#009FB7')
-  //   //     .setFeatureProperty(parcelId, 'portLineWeight', 100)
-  //   const updatedFeature = draw.get(parcelId)
-  //   //   console.log(updatedFeature)
-  //   id_arr.push(updatedFeature.id)
 })
+// console.log('coord_pointId_map')
+// console.log(coord_point_map)
 
-/* -------------------------------------------------------------------------- */
-/*                Method 01: multi-selection of points -> move                */
-/* -------------------------------------------------------------------------- */
+// console.log('point_lines_map')
+// console.log(point_lines_map)
 
-/* ---------------------------------- Steps --------------------------------- */
-// 1) Select one point of one polygon
-// 2) using mapbox's query to select all identical points of other polygons
-// 3) when users move one points, they are actually moving all identical points
-// 4) all polygons are updated by mapbox like regular mouse modification of one
+// console.log('line_points_map')
+// console.log(line_points_map)
 
-// map.on('draw.selectionchange', updateArea)
+map.on('draw.selectionchange', updateSelect)
 
-// function updateArea(e) {
-//   // 1) Don't do anything when not selecting a point
-//   if (!e.points[0]) return
+// Init variables
+let coord1 = null
+let coord2 = null
 
-//   console.log('e: ', e) // Feature{}
-//   console.log('e.points: ', e.points) // Feature{}
+let lineId = null
+let pointId1 = null
+let pointId2 = null
 
-//   // 2) get the target point - [lat, lng]
-//   console.log('--- ATTEMPT 1 ---')
-//   let targetP = e.points[0].geometry.coordinates
+function updateSelect(e) {
+  // console.log(e)
+  // const coords = e.features[0].geometry.coordinates[0]
+  // console.log(coords)
+  // console.log(draw.getFeatureIdsAt({ x: 0, y: 1 }))
+  // console.log(draw.getMode())
+  // // console.log(e.features)
+  // console.log(draw.getSelectedIds())
+  // const lineIdSet = point_lines_map.get('0_1')
+  // for (let lineId of lineIdSet) {
+  //   draw.changeMode('simple_select', { featureIds: [lineId] })
+  // }
+  // lineId = e.features[0].id
+  // coord1 = e.features[0].geometry.coordinates[0].join('_')
+  // coord2 = e.features[0].geometry.coordinates[1].join('_')
+  // pointId1 = coord_point_map.get(coord1)
+  // pointId2 = coord_point_map.get(coord2)
+  // console.log(pointId1)
+  // console.log('--- Selection Changed ---')
+  // console.log('lineId: ', lineId)
+  // console.log('point1Id: ', pointId1)
+  // console.log('point2Id: ', pointId2)
+}
 
-//   // 2-1) the coords are not exact match
-//   console.log('Target point: ', targetP) // [-13.1967682, 8.4709266]
+// console.log(draw.ctx.store)
 
-//   // 2-2) getting surrounding points
-//   let matchingP = map.queryRenderedFeatures(e.points[0])
+map.on('draw.update', updateLine)
 
-//   console.log('Matching numbers: ', matchingP.length) // ~100
+function updateLine(e) {
+  // console.log(e)
 
-//   // 2-3) filter the points
-//   for (let p of matchingP) {
-//     // ? check for polygon
-//     // ? will get four even we only have two polygons
-//     // ? id - undefined
-//     // ? source: mapbox-gl-cold
-//     if (p.geometry.type === 'Polygon') console.log('Polygon: ', p)
+  const movedLine = e.features[0]
+  // if (movedLine.type != 'LineString') return
 
-//     // e.features.push(p)
-//     // ? check for coordinates
-//     // ? since it is not exact match in 2-1, nothing is chosen, not even itself
-//     if (p.geometry.coordinates == targetP) console.log('WE HAVE A MATCH!')
-//   }
+  const movedLineId = movedLine.id
+  // console.log(movedLineId)
+  const movedPointIds = line_points_map.get(movedLineId)
+  const movedPointCoords = movedLine.geometry.coordinates
+  // console.log(movedPointIds)
+  // console.log(movedPointCoords)
+  // One point
 
-//   // 3) Try out custom modes
-//   console.log('--- ATTEMPT 2 ---')
-//   console.log('id_arr: ', id_arr) // the two ids of the polygons
+  for (let idx of [0, 1]) {
+    const pointId = movedPointIds[idx]
+    const pointCoords = movedPointCoords[idx]
+    const relatedLineIds = point_lines_map.get(movedPointIds[idx])
+    relatedLineIds.delete(movedLineId)
+    for (let lineId of relatedLineIds) {
+      const twoPointIds = line_points_map.get(lineId)
+      // console.log(twoPointIds)
+      // console.log(pointId)
 
-//   draw.changeMode('simple_select', { featureIds: id_arr })
-//   console.log('Get by id: ', draw.get(id_arr[0])) // the selected polygon
+      // find the moving index
+      let i
+      pointId === twoPointIds[0] ? (i = 0) : (i = 1)
+      // console.log(i)
+      let lineFeature = draw.get(lineId)
+      // console.log(lineFeature.geometry.coordinates[i])
+      lineFeature.geometry.coordinates[i] = pointCoords
 
-//   // ? get the points?
-// }
-
-/* -------------------------------------------------------------------------- */
-/*                 Method 02: select one - update all manually                */
-/* -------------------------------------------------------------------------- */
-
-// 1) find when draw change, if start state and end state are available
-// 2) loop through all polygons and change those with matching points
+      draw.delete(lineId)
+      draw.add(lineFeature)
+    }
+  }
+}
