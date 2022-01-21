@@ -274,74 +274,29 @@ currParcels.features.forEach((feature) => {
 // console.log('line_points_map')
 // console.log(line_points_map)
 
-map.on('draw.selectionchange', updateSelect)
-
-// Init variables
-let coord1 = null
-let coord2 = null
-
-let lineId = null
-let pointId1 = null
-let pointId2 = null
-
-function updateSelect(e) {
-  // console.log(e)
-  // const coords = e.features[0].geometry.coordinates[0]
-  // console.log(coords)
-  // console.log(draw.getFeatureIdsAt({ x: 0, y: 1 }))
-  // console.log(draw.getMode())
-  // // console.log(e.features)
-  // console.log(draw.getSelectedIds())
-  // const lineIdSet = point_lines_map.get('0_1')
-  // for (let lineId of lineIdSet) {
-  //   draw.changeMode('simple_select', { featureIds: [lineId] })
-  // }
-  // lineId = e.features[0].id
-  // coord1 = e.features[0].geometry.coordinates[0].join('_')
-  // coord2 = e.features[0].geometry.coordinates[1].join('_')
-  // pointId1 = coord_point_map.get(coord1)
-  // pointId2 = coord_point_map.get(coord2)
-  // console.log(pointId1)
-  // console.log('--- Selection Changed ---')
-  // console.log('lineId: ', lineId)
-  // console.log('point1Id: ', pointId1)
-  // console.log('point2Id: ', pointId2)
-}
-
-// console.log(draw.ctx.store)
-
 map.on('draw.update', updateLine)
 
 function updateLine(e) {
-  // console.log(e)
-
   const movedLine = e.features[0]
-  // if (movedLine.type != 'LineString') return
 
   const movedLineId = movedLine.id
-  // console.log(movedLineId)
   const movedPointIds = line_points_map.get(movedLineId)
   const movedPointCoords = movedLine.geometry.coordinates
-  // console.log(movedPointIds)
-  // console.log(movedPointCoords)
-  // One point
 
   for (let idx of [0, 1]) {
     const pointId = movedPointIds[idx]
     const pointCoords = movedPointCoords[idx]
     const relatedLineIds = point_lines_map.get(movedPointIds[idx])
     relatedLineIds.delete(movedLineId)
+
     for (let lineId of relatedLineIds) {
       const twoPointIds = line_points_map.get(lineId)
-      // console.log(twoPointIds)
-      // console.log(pointId)
 
-      // find the moving index
+      // find the moving index from the two points
       let i
       pointId === twoPointIds[0] ? (i = 0) : (i = 1)
-      // console.log(i)
+
       let lineFeature = draw.get(lineId)
-      // console.log(lineFeature.geometry.coordinates[i])
       lineFeature.geometry.coordinates[i] = pointCoords
 
       draw.delete(lineId)
