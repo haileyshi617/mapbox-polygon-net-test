@@ -265,14 +265,6 @@ currParcels.features.forEach((feature) => {
     ])
   }
 })
-// console.log('coord_pointId_map')
-// console.log(coord_point_map)
-
-// console.log('point_lines_map')
-// console.log(point_lines_map)
-
-// console.log('line_points_map')
-// console.log(line_points_map)
 
 map.on('draw.update', updateLine)
 
